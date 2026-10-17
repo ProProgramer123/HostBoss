@@ -21,7 +21,11 @@ public static class Hooks {
         GameObject go = new GameObject("HostBoss");
         UnityEngine.Object.DontDestroyOnLoad(go);
         Panel = go.AddComponent<BossPanel>();
+#if BEPINEX
+        Debug.Log("[HostBoss] Loaded 1.5.0 BepInEx plugin. Host controls: F6.");
+#else
         Debug.Log("[HostBoss] Loaded 1.4.2. Recording playback fix; Fire All cutscene only. Host controls: F6.");
+#endif
     }
     public static bool IsHost() { return NetworkServer.active && NetworkClient.active; }
     public static bool ManualBossActive() { return IsHost() && Panel != null && Panel.ManualBossEnabled; }
@@ -174,6 +178,17 @@ public sealed class BossPanel : MonoBehaviour {
         RestoreDefaultTitles();
         if (open) Toggle(false); CancelPreparation();
         if (chaosActive && Hooks.IsHost() && ScammerGameManager.Instance != null) StopChaos(ScammerGameManager.Instance);
+    }
+    public void ReleaseHostControl() {
+        if (open) Toggle(false);
+        CancelPreparation(); StopAllCoroutines();
+        FiringCutscene = false; fireAllQueued = false;
+        if (Board != null) Hooks.Call(Board, "StopFiredPresentation");
+        if (Hooks.IsHost()) {
+            if (reputationDestroyed || chaosActive) EndDestroyReputation();
+            SetAiBoss(true);
+        }
+        ManualBossEnabled = false;
     }
     void CaptureDefaultTitles() {
         defaultDeckTitle = nativeDeck.title;
