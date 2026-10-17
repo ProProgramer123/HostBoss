@@ -1,0 +1,43 @@
+# Generated dependencies, binaries, build products, local validation fixtures.
+*.dll
+*.exe
+*.pdb
+*.zip
+*.nupkg
+*.pending
+*.installer-new
+*.old
+*.update
+*.new
+**/.packages/
+**/bin/
+**/obj/
+**/dist/
+**/backup/
+**/test-game/
+**/standalone-test/
+**/verification.txt
+
+# Never publish the host game's data, media, recordings, or logs.
+Scam With Your Friends_Data/
+**/UWBCache/
+**/Recordings/
+**/Videos/
+*.webm
+*.mp4
+*.wav
+*.log
+Player*.txt
+output_log.txt
+
+# Local settings and credentials.
+.vs/
+.vscode/
+.env
+.env.*
+*.user
+*.suo
+*.pfx
+*.p12
+*.key
+*.pem
