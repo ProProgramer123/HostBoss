@@ -22,7 +22,7 @@ public static class Hooks {
         UnityEngine.Object.DontDestroyOnLoad(go);
         Panel = go.AddComponent<BossPanel>();
 #if BEPINEX
-        Debug.Log("[HostBoss] Loaded 1.5.0 BepInEx plugin. Host controls: F6.");
+        Debug.Log("[HostBoss] Loaded 1.5.1 BepInEx plugin. Host controls: F6.");
 #else
         Debug.Log("[HostBoss] Loaded 1.4.2. Recording playback fix; Fire All cutscene only. Host controls: F6.");
 #endif
@@ -93,6 +93,8 @@ public sealed class BossPanel : MonoBehaviour {
     float nextHold;
     uint selected;
     string quotaText = "";
+    readonly string[] nextDayGoals = { "Meet tomorrow's quota.", "Keep callers engaged.", "Work together as a team." };
+    ReviewSlideDefinition goalsSlide;
     Vector2 scroll;
     CursorLockMode previousLock;
     bool previousVisible;
@@ -129,7 +131,7 @@ public sealed class BossPanel : MonoBehaviour {
         }
     }
     void Update() {
-        if (!Hooks.IsHost()) { if (open) Toggle(false); CancelPreparation(); fired.Clear(); quotes.Clear(); quoteSlides.Clear(); preparedOverview = null; nativeDeck = null; preparedDay = -1; customQuota = -1; fireAllQueued = false; FiringCutscene = false; fireAllCompleted = false; reputationDestroyed = false; chaosActive = false; quoteDay = -1; shift = -1; return; }
+        if (!Hooks.IsHost()) { if (open) Toggle(false); CancelPreparation(); fired.Clear(); quotes.Clear(); quoteSlides.Clear(); preparedOverview = null; nativeDeck = null; goalsSlide = null; ResetNextDayGoals(); preparedDay = -1; customQuota = -1; fireAllQueued = false; FiringCutscene = false; fireAllCompleted = false; reputationDestroyed = false; chaosActive = false; quoteDay = -1; shift = -1; return; }
         Keyboard k = Keyboard.current;
         if (k != null && k.f6Key.wasPressedThisFrame) Toggle(!open);
         ScammerGameManager game = ScammerGameManager.Instance;
@@ -203,12 +205,54 @@ public sealed class BossPanel : MonoBehaviour {
     }
     void HandlePresentationEnded(int day) {
         RestoreDefaultTitles();
+        ResetNextDayGoals();
+        goalsSlide = null;
         presentationStarted = false;
         preparedDay = -1;
         defaultSlideTitles = null;
         defaultDeckTitle = null;
     }
     void HandleGameEnded() { HandlePresentationEnded(-1); }
+    void ResetNextDayGoals() {
+        nextDayGoals[0] = "Meet tomorrow's quota.";
+        nextDayGoals[1] = "Keep callers engaged.";
+        nextDayGoals[2] = "Work together as a team.";
+    }
+    void ApplyNextDayGoals() {
+        if (goalsSlide == null) return;
+        var bullets = new List<ReviewBulletDefinition>();
+        foreach (string goal in nextDayGoals) {
+            if (!string.IsNullOrWhiteSpace(goal)) bullets.Add(new ReviewBulletDefinition {
+                text = goal.Trim(), tone = "good", iconSvgPath = "kolkata-review/svg/check.svg"
+            });
+        }
+        if (bullets.Count == 0) bullets.Add(new ReviewBulletDefinition { text = "No goals set by the host.", tone = "neutral" });
+        goalsSlide.bullets = bullets.ToArray();
+        goalsSlide.narration = "";
+    }
+    void DrawNextDayGoals() {
+        GUILayout.Space(8);
+        GUILayout.Label("NEXT DAY GOALS");
+        if (!presentationStarted) {
+            GUILayout.Label("Edit up to three goals. Blank goals are omitted.");
+            for (int i = 0; i < nextDayGoals.Length; i++) {
+                GUILayout.Label("Goal " + (i + 1));
+                string edited = GUILayout.TextField(nextDayGoals[i]);
+                nextDayGoals[i] = edited.Length > 200 ? edited.Substring(0, 200) : edited;
+            }
+            if (GUILayout.Button("Reset goals to defaults")) ResetNextDayGoals();
+        }
+        GUI.enabled = presentationStarted && ScammerGameManager.Instance.IsReviewPhase && !preparing && !FiringCutscene && !fireAllQueued && Board != null && nativeDeck != null && goalsSlide != null;
+        if (GUILayout.Button("Show Next Day Goals")) {
+            int index = Array.IndexOf(nativeDeck.slides, goalsSlide);
+            if (index >= 0) {
+                Hooks.Call(Board, "ServerPublishSlideIndex", index, false);
+                Status = "Showing next-day goals to everyone.";
+            }
+        }
+        GUI.enabled = true;
+        GUILayout.Label("Shared on the presentation; goals reset after each review. These do not change quota rules.");
+    }
     string EditTitle(string title) {
         string edited = GUILayout.TextField(title ?? "");
         return edited.Length > 160 ? edited.Substring(0, 160) : edited;
@@ -333,6 +377,7 @@ public sealed class BossPanel : MonoBehaviour {
         try {
             CancelPreparation();
             RestoreDefaultTitles();
+            ResetNextDayGoals(); goalsSlide = null;
             if (chaosActive && game != null) StopChaos(game);
             fireAllQueued = false; fireAllCompleted = false; fired.Clear();
             ManualBossEnabled = !enableAi;
@@ -505,6 +550,18 @@ public sealed class BossPanel : MonoBehaviour {
             // from the disabled boss narration, and still plays through the native stream.
             slides.Add(slide);
         }
+        goalsSlide = null;
+        foreach (ReviewSlideDefinition slide in slides) {
+            if (slide.id != "runtime-ai-goals") continue;
+            // Preserve the game's prestige completion screen as its own slide.
+            if (slide.layout == "early-access") slide.id = "hostboss-prestige-summary";
+            else goalsSlide = slide;
+        }
+        if (goalsSlide == null) {
+            goalsSlide = new ReviewSlideDefinition { id = "runtime-ai-goals", layout = "checklist", theme = "blue", kicker = "Next Day", title = "Tomorrow's Goals", subtitle = "Your host's goals for the next shift.", durationSeconds = 8f, narration = "" };
+            slides.Add(goalsSlide);
+        }
+        ApplyNextDayGoals();
         slides.Add(new ReviewSlideDefinition { id="host-verdict", layout="quote", theme="blue", kicker="HOST BOSS", title="The floor is yours", quote="Your host decides who stays on the team.", subtitle="Waiting for the host to finish the review.", narration="", footer="Host Boss | Manual review" });
         deck.slides = slides.ToArray(); deck.presenterName = HostName(); deck.presenterTitle = "Host / Boss";
         deck.title = "Day " + day + " | Host review";
@@ -542,6 +599,7 @@ public sealed class BossPanel : MonoBehaviour {
         if (!Hooks.ManualBossActive() || game == null || !game.IsReviewPhase || preparing || presentationStarted || Board == null || nativeDeck == null || preparedDay != game.CurrentDay) return;
         try {
             Hooks.Set(Board, "m_playOnEnable", true);
+            ApplyNextDayGoals();
             presentationStarted = true;
             Board.Networkm_syncedDeckIsGenerating = false;
             PublishDeck(Board, game.CurrentDay, nativeDeck, 0);
@@ -665,6 +723,7 @@ public sealed class BossPanel : MonoBehaviour {
             GUILayout.EndScrollView(); GUI.DragWindow(new Rect(0, 0, 10000, 22)); return;
         }
         if (game.IsReviewPhase) DrawTitleEditor();
+        if (game.IsReviewPhase && !preparing && nativeDeck != null && preparedDay == game.CurrentDay) DrawNextDayGoals();
         GUI.enabled = game.IsReviewPhase && !preparing && !presentationStarted && nativeDeck != null && preparedDay == game.CurrentDay;
         if (GUILayout.Button(preparing ? "Preparing presentation..." : "Start Presentation", GUILayout.Height(36))) StartPresentation();
         GUI.enabled = true;

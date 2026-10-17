@@ -8,11 +8,11 @@ using Kolkata.UI;
 using UnityEngine;
 
 [assembly: AssemblyTitle("HostBoss BepInEx Plugin")]
-[assembly: AssemblyVersion("1.5.0.0")]
-[assembly: AssemblyFileVersion("1.5.0.0")]
+[assembly: AssemblyVersion("1.5.1.0")]
+[assembly: AssemblyFileVersion("1.5.1.0")]
 
 namespace HostBoss {
-    [BepInPlugin(PluginId, "HostBoss", "1.5.0")]
+    [BepInPlugin(PluginId, "HostBoss", "1.5.1")]
     [BepInProcess("Scam With Your Friends.exe")]
     public sealed class Plugin : BaseUnityPlugin {
         public const string PluginId = "com.proprogramer123.scamwyf.hostboss";
@@ -48,7 +48,7 @@ namespace HostBoss {
                 harmony = new Harmony(PluginId);
                 foreach (var patch in patches) harmony.Patch(patch.Key, prefix: patch.Value);
                 Hooks.Init();
-                Logger.LogInfo("HostBoss 1.5.0 enabled. Host a lobby and press F6. Game files are unchanged.");
+                Logger.LogInfo("HostBoss 1.5.1 enabled. Host a lobby and press F6. Game files are unchanged.");
             } catch (Exception e) {
                 DisablePlugin();
                 Logger.LogError("HostBoss could not enable; native boss remains active. " + e);
