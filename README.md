@@ -1,11 +1,12 @@
 # HostBoss for Scam With Your Friends
 
-An unofficial, experimental Windows mod that lets the lobby host control the end-of-day boss presentation. **HostBoss 1.5.0 is a BepInEx plugin for the ScamWYF launcher.** The legacy runtime (1.4.2) and graphical disk patcher (1.4.3) remain available as a separate alternative.
+An unofficial, experimental Windows mod that lets the lobby host control the end-of-day boss presentation. **HostBoss 1.5.1 is a BepInEx plugin for the ScamWYF launcher.** The legacy runtime (1.4.2) and graphical disk patcher (1.4.3) remain available as a separate alternative.
 
 ## Features
 
 - F6 host panel with gameplay controls paused while it is open.
 - Manual slide navigation, editable presentation/slide titles before starting, and an explicit Start Presentation gate.
+- Edit three next-day goals before starting, then show them to everyone with Show Next Day Goals. Goals reset after each review; quota rules are unchanged.
 - Live quota and earnings, optional quota override, and individual firing/rehiring.
 - Separate built-in quote display and recording playback buttons.
 - Fire All plays the native firing cutscene without firing employees. Destroy Reputation continues into the game's fire effects; End Destroy Reputation stops effects and returns everyone to the lobby.
@@ -16,7 +17,7 @@ See [the full user guide](HostBoss/README.md) for behavior, limitations, and nor
 
 ## Install a release
 
-For the launcher, download **HostBoss-Plugin-1.5.0.zip** from the repository's releases. Use the launcher's Setup tab for BepInEx and its game compatibility fixes, then install the ZIP through Get mods / Install from URL, or copy only `ScamWYF.HostBoss.dll` into `BepInEx/plugins`. The plugin uses runtime Harmony hooks and leaves game DLLs unchanged. See the [plugin guide](HostBoss/PLUGIN.md).
+For the launcher, download **HostBoss-Plugin-1.5.1.zip** from the repository's releases. Use the launcher's Setup tab for BepInEx and its game compatibility fixes, then install the ZIP through Get mods / Install from URL, or copy only `ScamWYF.HostBoss.dll` into `BepInEx/plugins`. The plugin uses runtime Harmony hooks and leaves game DLLs unchanged. See the [plugin guide](HostBoss/PLUGIN.md).
 
 **Switching from the patcher:** close the game and choose **Remove / Normal Play** in HostBoss Patcher first. The plugin refuses mixed legacy/plugin installations. Disable or remove the plugin through the launcher's Mods tab with the game closed, then restart.
 
