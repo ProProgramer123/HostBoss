@@ -1,6 +1,6 @@
 # HostBoss for Scam With Your Friends
 
-An unofficial, experimental Windows mod that lets the lobby host control the end-of-day boss presentation. The runtime is version 1.4.2; the graphical patcher is version 1.4.3.
+An unofficial, experimental Windows mod that lets the lobby host control the end-of-day boss presentation. **HostBoss 1.5.0 is a BepInEx plugin for the ScamWYF launcher.** The legacy runtime (1.4.2) and graphical disk patcher (1.4.3) remain available as a separate alternative.
 
 ## Features
 
@@ -16,7 +16,11 @@ See [the full user guide](HostBoss/README.md) for behavior, limitations, and nor
 
 ## Install a release
 
-When a binary release is available, download its complete `HostBoss-Patcher-1.4.3.zip`, extract all files, and run `HostBoss Patcher.exe`. Keep the adjacent `Mono.Cecil.dll` and `HostBoss` folder together. Close the game before Install / Update or Remove / Normal Play. Host a lobby and press F6.
+For the launcher, download **HostBoss-Plugin-1.5.0.zip** from the repository's releases. Use the launcher's Setup tab for BepInEx and its game compatibility fixes, then install the ZIP through Get mods / Install from URL, or copy only `ScamWYF.HostBoss.dll` into `BepInEx/plugins`. The plugin uses runtime Harmony hooks and leaves game DLLs unchanged. See the [plugin guide](HostBoss/PLUGIN.md).
+
+**Switching from the patcher:** close the game and choose **Remove / Normal Play** in HostBoss Patcher first. The plugin refuses mixed legacy/plugin installations. Disable or remove the plugin through the launcher's Mods tab with the game closed, then restart.
+
+For the legacy patcher, extract the entire `HostBoss-Patcher-1.4.3.zip` and run `HostBoss Patcher.exe`, keeping the adjacent `Mono.Cecil.dll` and `HostBoss` folder together. This package is separate from the launcher plugin; do not install both.
 
 GitHub's automatically generated Source code ZIP contains source, not a ready-to-run patcher. Build it using the instructions below.
 
@@ -25,6 +29,16 @@ GitHub's automatically generated Source code ZIP contains source, not a ready-to
 Requirements: Windows, the .NET SDK (8 or newer), Windows .NET Framework 4.x including its C# compiler, and your own installed copy of Scam With Your Friends with managed assemblies. The game DLLs are read only as compiler references and are never included in this repository or release package. The current source was checked against the local 0.1.73-era game installation; future updates can change the required methods.
 
 From a source checkout, run in PowerShell:
+
+```powershell
+.\HostBoss\restore-plugin-dependencies.ps1
+.\HostBoss\build-plugin.ps1 -GameDir 'C:\Path\To\Scam With Your Friends'
+.\HostBoss\package-plugin.ps1
+```
+
+This restores build references from the pinned official BepInEx 5.4.23.5 archive with a SHA-256 check. Neither the loader nor Harmony is redistributed in the plugin ZIP; the launcher's Setup supplies them. The plugin has no dependency on mod-lib or the legacy HostBoss runtime.
+
+To build the legacy patcher instead:
 
 ```powershell
 .\HostBoss\restore-dependencies.ps1
@@ -41,6 +55,12 @@ If local PowerShell policy prevents a script from running, use a permitted Power
 After building and packaging, run these in separate Windows PowerShell processes:
 
 ```powershell
+powershell.exe -NoProfile -File .\HostBoss\tools\verify-plugin.ps1 -GameDir 'C:\Path\To\Scam With Your Friends'
+```
+
+For the legacy patcher build:
+
+```powershell
 powershell.exe -NoProfile -File .\HostBoss\tools\verify.ps1 -GameDir 'C:\Path\To\Scam With Your Friends'
 powershell.exe -NoProfile -File .\HostBoss\tools\verify-replay.ps1
 powershell.exe -NoProfile -File .\HostBoss\tools\verify-desktop.ps1
@@ -53,6 +73,7 @@ The scripts copy required assemblies into ignored local fixtures. They check pat
 | Path | Purpose |
 | --- | --- |
 | `HostBoss/src/HostBoss.cs` | Runtime host panel and game controls |
+| `HostBoss/src/Plugin.cs` | BepInEx metadata, Harmony hooks, conflict guard, and cleanup |
 | `HostBoss/src/Patcher.cs` | Mono.Cecil assembly patches and restoration |
 | `HostBoss/src/Installer.cs` | Windows Forms patcher and command-line entry points |
 | `HostBoss/build.ps1` | Compile using the owner's installed game references |
