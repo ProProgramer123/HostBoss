@@ -1,23 +1,30 @@
 # HostBoss for Scam With Your Friends
 
-An unofficial, experimental Windows mod that lets the lobby host control the end-of-day boss presentation. **HostBoss 1.5.1 is a BepInEx plugin for the ScamWYF launcher.** The legacy runtime (1.4.2) and graphical disk patcher (1.4.3) remain available as a separate alternative.
+An unofficial, experimental Windows mod that lets the lobby host control the end-of-day boss presentation. **HostBoss 1.60.0 uses BepInEx and the shared ScamWYF mod-lib 1.1.0.** The legacy runtime (1.4.2) and graphical disk patcher (1.4.3) remain separate historical releases.
+
+The break-room character-creator laptop now includes **HostBoss** and **Slide Maker** apps with native app windows. Both require the player opening them to be the host. F6 remains available and shares the same Slide Maker draft and saves.
 
 ## Features
 
 - F6 host panel with gameplay controls paused while it is open.
-- Manual slide navigation, editable presentation/slide titles before starting, and an explicit Start Presentation gate.
+- Full Slide Maker with the game's default templates, custom text/quotes/PNGs, slide add/duplicate/delete/reorder, and persistent save/load available anytime.
+- Editable boss TTS tied to each slide, with the game's networked voice playback.
+- Native app announcements, real What the Boss Heard / chosen review slides and original TTS toggles.
+- Per-slide boss-cam corner choices, user-data saves, visible save feedback and automatic reopening of the last saved deck.
+- Shared mod-lib F1 menu, coordinated patches and one registered F6 hotkey.
+- Manual slide navigation and an explicit Start Presentation gate.
 - Edit three next-day goals before starting, then show them to everyone with Show Next Day Goals. Goals reset after each review; quota rules are unchanged.
 - Live quota and earnings, optional quota override, and individual firing/rehiring.
 - Separate built-in quote display and recording playback buttons.
 - Fire All plays the native firing cutscene without firing employees. Destroy Reputation continues into the game's fire effects; End Destroy Reputation stops effects and returns everyone to the lobby.
 - AI Boss toggle restores the game's boss and restarts the presentation; manual controls are disabled while AI is enabled.
-- Backup-aware installer, updater, and uninstaller.
+- The historical disk patcher remains available as a separate release with backup-aware install and removal.
 
 See [the full user guide](HostBoss/README.md) for behavior, limitations, and normal-play instructions. Multiplayer compatibility and native recording playback still need live testing. No clean antivirus verdict is claimed; see [the security notes](HostBoss/SECURITY.md).
 
 ## Install a release
 
-For the launcher, download **HostBoss-Plugin-1.5.1.zip** from the repository's releases. Use the launcher's Setup tab for BepInEx and its game compatibility fixes, then install the ZIP through Get mods / Install from URL, or copy only `ScamWYF.HostBoss.dll` into `BepInEx/plugins`. The plugin uses runtime Harmony hooks and leaves game DLLs unchanged. See the [plugin guide](HostBoss/PLUGIN.md).
+For version 1.60.0, put `ScamWYF.HostBoss.dll` from **HostBoss-Plugin-1.60.0.zip** in `BepInEx/plugins` and the bundled `ScamWYF.Modding.Core.dll` in `BepInEx/core`. The launcher catalogue must route both files to their correct folders before this version can be installed through it; the required entry is in [catalogue-entry.json](HostBoss/catalogue-entry.json). Use the launcher's Setup tab for BepInEx and its game compatibility fixes first. The plugin uses runtime Harmony hooks and leaves game DLLs unchanged. See the [plugin guide](HostBoss/PLUGIN.md).
 
 **Switching from the patcher:** close the game and choose **Remove / Normal Play** in HostBoss Patcher first. The plugin refuses mixed legacy/plugin installations. Disable or remove the plugin through the launcher's Mods tab with the game closed, then restart.
 
@@ -27,17 +34,18 @@ GitHub's automatically generated Source code ZIP contains source, not a ready-to
 
 ## Build from source
 
-Requirements: Windows, the .NET SDK (8 or newer), Windows .NET Framework 4.x including its C# compiler, and your own installed copy of Scam With Your Friends with managed assemblies. The game DLLs are read only as compiler references and are never included in this repository or release package. The current source was checked against the local 0.1.73-era game installation; future updates can change the required methods.
+Requirements: Windows, the .NET SDK (8 or newer), Windows .NET Framework 4.x including its C# compiler, and your own installed copy of Scam With Your Friends with managed assemblies. The game DLLs are read only as compiler references and are never included in this repository or release package. The current source was checked against the local 0.1.74-swyf game installation; future updates can change the required methods.
 
 From a source checkout, run in PowerShell:
 
 ```powershell
 .\HostBoss\restore-plugin-dependencies.ps1
+.\HostBoss\restore-modlib.ps1 -GameDir 'C:\Path\To\Scam With Your Friends'
 .\HostBoss\build-plugin.ps1 -GameDir 'C:\Path\To\Scam With Your Friends'
 .\HostBoss\package-plugin.ps1
 ```
 
-This restores build references from the pinned official BepInEx 5.4.23.5 archive with a SHA-256 check. Neither the loader nor Harmony is redistributed in the plugin ZIP; the launcher's Setup supplies them. The plugin has no dependency on mod-lib or the legacy HostBoss runtime.
+This restores build references from the pinned official BepInEx 5.4.23.5 archive with a SHA-256 check. Also run `HostBoss/restore-modlib.ps1 -GameDir <game folder>` before building: it builds mod-lib from the unmodified v1.1.0 C# sources at commit `efe7b332d5832f7b5efce941905df8a75795f30e`, checks the pin, and packages the shared DLL with its MIT license and provenance. Neither BepInEx nor Harmony is redistributed in the plugin ZIP; the launcher's Setup supplies them. There is no dependency on the legacy HostBoss runtime.
 
 To build the legacy patcher instead:
 
