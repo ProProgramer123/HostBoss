@@ -14,7 +14,7 @@ try {
     if ($metadata.Count -ne 1) { throw 'Expected one BepInPlugin attribute.' }
     if ($metadata[0].ConstructorArguments[0].Value -ne 'com.proprogramer123.scamwyf.hostboss') { throw 'Wrong plugin GUID.' }
     $version = New-Object Version ($metadata[0].ConstructorArguments[2].Value)
-    if ($version.ToString() -ne '1.60.0') { throw 'Wrong plugin version.' }
+    if ($version.ToString() -ne '1.60.1') { throw 'Wrong plugin version.' }
     if ($plugin.MainModule.AssemblyReferences.Name -contains 'HostBoss.Runtime') { throw 'Plugin depends on the legacy runtime.' }
     $enable = $type.Methods | Where-Object Name -eq 'EnablePlugin'
     $targets = @($enable.Body.Instructions | Where-Object {$_.Operand -is [Mono.Cecil.MethodReference] -and $_.Operand.Name -eq 'Add'})
@@ -66,14 +66,14 @@ try {
     } finally { $imgui.Dispose() }
 } finally { $plugin.Dispose() }
 Add-Type -AssemblyName System.IO.Compression.FileSystem
-$zip = [IO.Compression.ZipFile]::OpenRead((Join-Path $root 'dist\HostBoss-Plugin-1.60.0.zip'))
+$zip = [IO.Compression.ZipFile]::OpenRead((Join-Path $root 'dist\HostBoss-Plugin-1.60.1.zip'))
 try {
     $files = @($zip.Entries | ForEach-Object FullName)
-    if ($files.Count -ne 7 -or @($files | Where-Object {$_ -notin @('ScamWYF.HostBoss.dll','ScamWYF.Modding.Core.dll','LICENSE','LICENSE.mod-lib','MODLIB-SOURCE.txt','README.md','SHA256SUMS.txt')}).Count) { throw 'Plugin ZIP contains unexpected files.' }
+    if ($files.Count -ne 8 -or @($files | Where-Object {$_ -notin @('ScamWYF.HostBoss.dll','ScamWYF.Modding.Core.dll','LICENSE','LICENSE.mod-lib','MODLIB-SOURCE.txt','README.md','SHA256SUMS.txt','Repair-GameUpdate.ps1')}).Count) { throw 'Plugin ZIP contains unexpected files.' }
 } finally { $zip.Dispose() }
 'PASS: BepInEx plugin metadata and numeric version are valid.'
 'PASS: all fifteen native patch targets exist; result prefixes and cleanup are present.'
 'PASS: native laptop hooks and reflected fields match; both app actions and content are host-gated.'
 'PASS: legacy patch conflict guard present; no legacy runtime dependency.'
-'PASS: plugin ZIP contains the plugin, shared core library, both licenses, provenance, guide and checksums.'
+'PASS: plugin ZIP contains the plugin, shared core library, both licenses, provenance, guide, update repair script and checksums.'
 'NOTE: these are structural checks; live BepInEx and multiplayer gameplay are not tested.'
