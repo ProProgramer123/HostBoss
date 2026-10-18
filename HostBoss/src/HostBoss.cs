@@ -8,6 +8,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using Mirror;
 using Kolkata.UI;
+using Cysharp.Threading.Tasks;
 
 namespace HostBoss {
 public static class Hooks {
@@ -22,7 +23,7 @@ public static class Hooks {
         UnityEngine.Object.DontDestroyOnLoad(go);
         Panel = go.AddComponent<BossPanel>();
 #if BEPINEX
-        Debug.Log("[HostBoss] Loaded 1.5.1 BepInEx plugin. Host controls: F6.");
+        Debug.Log("[HostBoss] Loaded 1.60.0 BepInEx plugin. Host controls: F6.");
 #else
         Debug.Log("[HostBoss] Loaded 1.4.2. Recording playback fix; Fire All cutscene only. Host controls: F6.");
 #endif
@@ -57,7 +58,7 @@ public static class Hooks {
     }
 }
 
-public sealed class BossPanel : MonoBehaviour {
+public sealed partial class BossPanel : MonoBehaviour {
     public ReviewWhiteboardController Board;
     public bool ManualBossEnabled = true;
     public string Status = "F6 opens the boss panel. Speak to your team using voice chat.";
@@ -72,9 +73,12 @@ public sealed class BossPanel : MonoBehaviour {
     ReviewDayOverview preparedOverview;
     ReviewSlideDeckDefinition nativeDeck;
     bool presentationStarted;
-    string defaultDeckTitle;
-    string[] defaultSlideTitles;
-    bool editTitles = true;
+    ReviewSlideDeckDefinition defaultReviewDeck;
+    ReviewSlideDeckDefinition originalReviewDeck;
+    PresentationOptions activeOptions;
+    bool madeDeckActive;
+    bool makerVisible;
+    SlideMaker maker;
     int quoteIndex;
     int quoteDay = -1;
     int quoteReturnSlide;
@@ -101,6 +105,9 @@ public sealed class BossPanel : MonoBehaviour {
     Rect window = new Rect(24, 70, 580, 630);
     const BindingFlags Flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static;
     public bool IsFired(uint id) { return fired.ContainsKey(id); }
+    public void TogglePanel() { Toggle(!open); }
+    public void OpenMaker() { makerVisible = true; scroll = Vector2.zero; Toggle(true); }
+    public void OpenHostControls() { makerVisible = false; scroll = Vector2.zero; Toggle(true); }
     public string HostName() {
         foreach (PlayerName p in PlayerName.Instances) if (p != null && p.isLocalPlayer) return p.playerName;
         return "Host";
@@ -131,9 +138,9 @@ public sealed class BossPanel : MonoBehaviour {
         }
     }
     void Update() {
-        if (!Hooks.IsHost()) { if (open) Toggle(false); CancelPreparation(); fired.Clear(); quotes.Clear(); quoteSlides.Clear(); preparedOverview = null; nativeDeck = null; goalsSlide = null; ResetNextDayGoals(); preparedDay = -1; customQuota = -1; fireAllQueued = false; FiringCutscene = false; fireAllCompleted = false; reputationDestroyed = false; chaosActive = false; quoteDay = -1; shift = -1; return; }
         Keyboard k = Keyboard.current;
-        if (k != null && k.f6Key.wasPressedThisFrame) Toggle(!open);
+        if (open && k != null && k.escapeKey.wasPressedThisFrame) Toggle(false);
+        if (!Hooks.IsHost()) { CancelPreparation(); fired.Clear(); quotes.Clear(); quoteSlides.Clear(); preparedOverview = null; nativeDeck = null; defaultReviewDeck = null; goalsSlide = null; madeDeckActive = false; ResetNextDayGoals(); preparedDay = -1; customQuota = -1; fireAllQueued = false; FiringCutscene = false; fireAllCompleted = false; reputationDestroyed = false; chaosActive = false; quoteDay = -1; shift = -1; return; }
         ScammerGameManager game = ScammerGameManager.Instance;
         if (game == null) return;
         if (Board == null) Board = UnityEngine.Object.FindObjectOfType<ReviewWhiteboardController>();
@@ -171,6 +178,7 @@ public sealed class BossPanel : MonoBehaviour {
         Hooks.Call(game, "ServerCheckQuotaReached");
     }
     void OnEnable() {
+        if (maker == null) maker = new SlideMaker(System.IO.Path.Combine(Application.persistentDataPath, "HostBoss", "Presentations"));
         ScammerGameManager.OnReviewPhaseEnded += HandlePresentationEnded;
         ScammerGameManager.OnGameEnded += HandleGameEnded;
     }
@@ -193,15 +201,109 @@ public sealed class BossPanel : MonoBehaviour {
         ManualBossEnabled = false;
     }
     void CaptureDefaultTitles() {
-        defaultDeckTitle = nativeDeck.title;
-        defaultSlideTitles = new string[nativeDeck.slides.Length];
-        for (int i = 0; i < nativeDeck.slides.Length; i++) defaultSlideTitles[i] = nativeDeck.slides[i].title;
-        editTitles = true;
+        defaultReviewDeck = SlideDocument.Clone(nativeDeck);
+        madeDeckActive = false;
+        activeOptions = null;
     }
     void RestoreDefaultTitles() {
-        if (nativeDeck == null || defaultSlideTitles == null) return;
-        nativeDeck.title = defaultDeckTitle;
-        for (int i = 0; i < defaultSlideTitles.Length && i < nativeDeck.slides.Length; i++) nativeDeck.slides[i].title = defaultSlideTitles[i];
+        if (defaultReviewDeck == null) return;
+        nativeDeck = SlideDocument.Clone(defaultReviewDeck);
+        madeDeckActive = false;
+        activeOptions = null;
+        goalsSlide = FindGoalsSlide(nativeDeck);
+        ReindexQuoteSlides();
+    }
+    static ReviewSlideDefinition FindGoalsSlide(ReviewSlideDeckDefinition deck) {
+        foreach (var slide in deck.slides) if (slide.id == "runtime-ai-goals" || slide.id == "fallback-goals") return slide;
+        return null;
+    }
+    void ReindexQuoteSlides() {
+        for (int q = 0; q < quotes.Count; q++) {
+            quoteSlides[q] = -1;
+            for (int i = 0; i < nativeDeck.slides.Length; i++) {
+                var moments = nativeDeck.slides[i].replayMoments;
+                if (moments == null) continue;
+                foreach (var moment in moments) if (moment != null && moment.playerName == quotes[q].playerName && moment.quote == quotes[q].quote) { quoteSlides[q] = i; break; }
+                if (quoteSlides[q] >= 0) break;
+            }
+        }
+        quoteReturnSlide = 0;
+    }
+    public bool CanApplyMadeDeck { get { var game = ScammerGameManager.Instance; return Hooks.ManualBossActive() && game != null && game.IsReviewPhase && !presentationStarted && !preparing && !FiringCutscene && !fireAllQueued && Board != null && nativeDeck != null && preparedDay == game.CurrentDay; } }
+    public bool CanNarrateSlide(ReviewWhiteboardController board) {
+        var game = ScammerGameManager.Instance;
+        if (!presentationStarted || preparing || Board != board || game == null || !game.IsReviewPhase || preparedDay != game.CurrentDay) return false;
+        var deck = (ReviewSlideDeckDefinition)Hooks.Get(board, "m_deck");
+        int index = board.CurrentSlideIndex;
+        if (deck == null || deck.slides == null || index < 0 || index >= deck.slides.Length) return false;
+        var slide = deck.slides[index];
+        if (!string.IsNullOrWhiteSpace(slide.narration)) return true;
+        if (slide.replayMoments != null) foreach (var moment in slide.replayMoments) if (moment != null && (!string.IsNullOrWhiteSpace(moment.introduction) || !string.IsNullOrWhiteSpace(moment.reaction) || !string.IsNullOrWhiteSpace(moment.fallback))) return true;
+        return false;
+    }
+    public void ApplyMadeDeck(SlideDocument document) {
+        if (!CanApplyMadeDeck) throw new InvalidOperationException("Wait for a manual review to prepare, before starting the presentation.");
+        SlideDocument.Validate(document.Deck);
+        var draft = SlideDocument.Clone(document.Deck);
+        var options = SlideDocument.Clone(document.Options);
+        if (options.NeedsAi) {
+            CancelPreparation(); preparation = new CancellationTokenSource(); preparing = true;
+            prepareRoutine = StartCoroutine(PrepareSelectedSlides(draft, options, ScammerGameManager.Instance.CurrentDay, preparation.Token));
+            Status = "Preparing the game's selected slides, real quotes and original boss TTS...";
+            return;
+        }
+        CommitMadeDeck(draft, options, originalReviewDeck ?? defaultReviewDeck);
+    }
+    void CommitMadeDeck(ReviewSlideDeckDefinition draft, PresentationOptions options, ReviewSlideDeckDefinition source) {
+        var deck = SlideDocument.ResolveNativeContent(draft, source, options);
+        DeckJson(deck, options);
+        nativeDeck = deck; madeDeckActive = true;
+        activeOptions = options;
+        for (int i = 0; i < deck.slides.Length; i++) if (deck.slides[i].replayMoments != null) foreach (var moment in deck.slides[i].replayMoments) if (moment != null && !string.IsNullOrWhiteSpace(moment.quote)) AddRecordingQuote(moment, i);
+        goalsSlide = FindGoalsSlide(deck);
+        ReindexQuoteSlides();
+        Status = "Custom presentation applied. Click Start Presentation when ready.";
+    }
+    IEnumerator PrepareSelectedSlides(ReviewSlideDeckDefinition draft, PresentationOptions options, int day, CancellationToken token) {
+        var work = BuildSelectedSlides(draft, options, day, token);
+        while (true) {
+            bool more;
+            try { more = work.MoveNext(); }
+            catch (Exception e) {
+                preparing = false; prepareRoutine = null;
+                var game = ScammerGameManager.Instance;
+                if (!token.IsCancellationRequested && !options.UseNativeSlides && Hooks.ManualBossActive() && game != null && game.IsReviewPhase && game.CurrentDay == day && !presentationStarted) {
+                    try {
+                        CommitMadeDeck(draft, options, originalReviewDeck ?? defaultReviewDeck);
+                        Status = "Custom presentation applied. AI notes unavailable: " + e.Message + " Click Start Presentation when ready.";
+                    } catch (Exception applyError) { Status = "Could not apply custom presentation: " + applyError.Message; }
+                } else Status = token.IsCancellationRequested ? "Native slide preparation canceled." : "Could not prepare the game's slides: " + e.Message;
+                Debug.LogWarning("[HostBoss] " + Status); yield break;
+            }
+            if (!more) break;
+            yield return work.Current;
+        }
+        preparing = false; prepareRoutine = null;
+    }
+    IEnumerator BuildSelectedSlides(ReviewSlideDeckDefinition draft, PresentationOptions options, int day, CancellationToken token) {
+        var tracker = ReviewDaySummaryTracker.GetOrCreate();
+        var overview = tracker.BuildDayOverview();
+        var service = ReviewReplayService.Ensure();
+        Task metadata = service.WaitForMetadata(overview, token);
+        while (!metadata.IsCompleted) { token.ThrowIfCancellationRequested(); yield return null; }
+        metadata.GetAwaiter().GetResult();
+        var task = ReviewBossAiClient.TryBuildBossReviewAsync(overview, (string)Hooks.Get(Board, "m_hostAiEndpoint"), (string)Hooks.Get(Board, "m_hostAiModel"), (float)Hooks.Get(Board, "m_hostAiTimeoutSeconds"), token).AsTask();
+        while (!task.IsCompleted) { token.ThrowIfCancellationRequested(); yield return null; }
+        var review = task.GetAwaiter().GetResult();
+        if (review == null) throw new InvalidOperationException("The game's review AI did not return a review. Check its backend and try again.");
+        var evidence = typeof(ReviewDayOverview).Assembly.GetType("Kolkata.UI.ReviewEvidencePacket");
+        evidence.GetMethod("Freeze", Flags).Invoke(null, new object[] { overview });
+        Task highlights = service.PrepareHighlights(overview, token);
+        while (!highlights.IsCompleted) { token.ThrowIfCancellationRequested(); yield return null; }
+        highlights.GetAwaiter().GetResult(); token.ThrowIfCancellationRequested();
+        var game = ScammerGameManager.Instance;
+        if (!Hooks.ManualBossActive() || game == null || !game.IsReviewPhase || game.CurrentDay != day || presentationStarted) throw new OperationCanceledException();
+        CommitMadeDeck(draft, options, tracker.BuildReviewDeck(review, overview));
     }
     void HandlePresentationEnded(int day) {
         RestoreDefaultTitles();
@@ -209,8 +311,8 @@ public sealed class BossPanel : MonoBehaviour {
         goalsSlide = null;
         presentationStarted = false;
         preparedDay = -1;
-        defaultSlideTitles = null;
-        defaultDeckTitle = null;
+        defaultReviewDeck = null;
+        madeDeckActive = false;
     }
     void HandleGameEnded() { HandlePresentationEnded(-1); }
     void ResetNextDayGoals() {
@@ -233,7 +335,7 @@ public sealed class BossPanel : MonoBehaviour {
     void DrawNextDayGoals() {
         GUILayout.Space(8);
         GUILayout.Label("NEXT DAY GOALS");
-        if (!presentationStarted) {
+        if (!presentationStarted && !madeDeckActive) {
             GUILayout.Label("Edit up to three goals. Blank goals are omitted.");
             for (int i = 0; i < nextDayGoals.Length; i++) {
                 GUILayout.Label("Goal " + (i + 1));
@@ -251,25 +353,7 @@ public sealed class BossPanel : MonoBehaviour {
             }
         }
         GUI.enabled = true;
-        GUILayout.Label("Shared on the presentation; goals reset after each review. These do not change quota rules.");
-    }
-    string EditTitle(string title) {
-        string edited = GUILayout.TextField(title ?? "");
-        return edited.Length > 160 ? edited.Substring(0, 160) : edited;
-    }
-    void DrawTitleEditor() {
-        if (presentationStarted || preparing || nativeDeck == null || defaultSlideTitles == null) return;
-        editTitles = GUILayout.Toggle(editTitles, "Edit presentation titles (this review only)");
-        if (!editTitles) return;
-        GUILayout.Label("Presentation title");
-        nativeDeck.title = EditTitle(nativeDeck.title);
-        for (int i = 0; i < defaultSlideTitles.Length && i < nativeDeck.slides.Length; i++) {
-            GUILayout.Label("Slide " + (i + 1));
-            nativeDeck.slides[i].title = EditTitle(nativeDeck.slides[i].title);
-        }
-        if (GUILayout.Button("Reset titles to defaults")) RestoreDefaultTitles();
-        GUILayout.Label("Titles are shared when you start. They reset when the presentation ends.");
-        GUILayout.Space(8);
+        GUILayout.Label(madeDeckActive ? "Custom deck goals are edited in Slide Maker. Saved decks stay saved after the review." : "Shared on the presentation; goals reset after each review. These do not change quota rules.");
     }
     void MoveSlide(int direction) {
         if (!Hooks.IsHost() || Board == null || !ScammerGameManager.Instance.IsReviewPhase || Board.SlideCount == 0) return;
@@ -451,8 +535,23 @@ public sealed class BossPanel : MonoBehaviour {
         while (Hooks.IsHost() && Board != null && (bool)Hooks.Get(Board, "m_firedPresentationActive") && Time.unscaledTime < deadline) yield return null;
         if (Board != null && (bool)Hooks.Get(Board, "m_firedPresentationActive")) throw new InvalidOperationException("Native firing presentation timed out.");
     }
-    void PublishDeck(ReviewWhiteboardController board, int day, ReviewSlideDeckDefinition deck, int slideIndex) {
+    static string DeckJson(ReviewSlideDeckDefinition deck, PresentationOptions options) {
         string json = Newtonsoft.Json.JsonConvert.SerializeObject(deck);
+        if (options != null) {
+            var root = Newtonsoft.Json.Linq.JObject.Parse(json);
+            var camera = new PresentationOptions();
+            foreach (var slide in deck.slides) {
+                SlideOptions setting;
+                if (options.Slides.TryGetValue(slide.id, out setting) && setting.Camera != "auto") camera.Slides[slide.id] = new SlideOptions {Camera=setting.Camera};
+            }
+            root["hostBossOptions"] = Newtonsoft.Json.Linq.JObject.FromObject(camera);
+            json = root.ToString(Newtonsoft.Json.Formatting.None);
+        }
+        if (System.Text.Encoding.UTF8.GetByteCount(json) > 60000) throw new InvalidOperationException("Presentation is too large to share. Remove images or slides in Slide Maker.");
+        return json;
+    }
+    void PublishDeck(ReviewWhiteboardController board, int day, ReviewSlideDeckDefinition deck, int slideIndex) {
+        string json = DeckJson(deck, madeDeckActive ? activeOptions : null);
         board.Networkm_syncedDeckDay = day;
         board.Networkm_syncedReviewComplete = false;
         board.Networkm_syncedSlideIndex = slideIndex;
@@ -542,6 +641,7 @@ public sealed class BossPanel : MonoBehaviour {
         highlights.GetAwaiter().GetResult();
         token.ThrowIfCancellationRequested();
         ReviewSlideDeckDefinition deck = tracker.BuildReviewDeck(null, overview);
+        originalReviewDeck = SlideDocument.Clone(deck);
         List<ReviewSlideDefinition> slides = new List<ReviewSlideDefinition>();
         foreach (ReviewSlideDefinition slide in deck.slides) {
             if ((bool)Hooks.Call(board, "IsFiredSlide", slide)) continue;
@@ -599,7 +699,7 @@ public sealed class BossPanel : MonoBehaviour {
         if (!Hooks.ManualBossActive() || game == null || !game.IsReviewPhase || preparing || presentationStarted || Board == null || nativeDeck == null || preparedDay != game.CurrentDay) return;
         try {
             Hooks.Set(Board, "m_playOnEnable", true);
-            ApplyNextDayGoals();
+            if (!madeDeckActive) ApplyNextDayGoals();
             presentationStarted = true;
             Board.Networkm_syncedDeckIsGenerating = false;
             PublishDeck(Board, game.CurrentDay, nativeDeck, 0);
@@ -616,7 +716,7 @@ public sealed class BossPanel : MonoBehaviour {
             int source = quoteSlides[quoteIndex];
             if (source < 0) source = 0;
             ReviewSlideDefinition display = Newtonsoft.Json.JsonConvert.DeserializeObject<ReviewSlideDefinition>(Newtonsoft.Json.JsonConvert.SerializeObject(nativeDeck.slides[source]));
-            display.id = "hostboss-quote-only";
+            display.id = "hostboss-quote-only"; display.imagePath = "";
             display.narration = "";
             // Keep a native replay-shaped slide so the game's quote RPC accepts it.
             // An empty recording ID plus PresentQuoteOnly prevents audio/video playback.
@@ -664,7 +764,7 @@ public sealed class BossPanel : MonoBehaviour {
             // Highlights can exist without an authored replay slide. Publish one selected
             // native moment so playback never depends on the old slide-index mapping.
             ReviewSlideDefinition display = Newtonsoft.Json.JsonConvert.DeserializeObject<ReviewSlideDefinition>(Newtonsoft.Json.JsonConvert.SerializeObject(nativeDeck.slides[0]));
-            display.id = "hostboss-recording"; display.narration = "";
+            display.id = "hostboss-recording"; display.narration = ""; display.imagePath = "";
             display.replayMoments = new [] { moment };
             List<ReviewSlideDefinition> slides = new List<ReviewSlideDefinition>();
             foreach (ReviewSlideDefinition existing in nativeDeck.slides) if (existing.id != "hostboss-recording") slides.Add(existing);
@@ -699,11 +799,10 @@ public sealed class BossPanel : MonoBehaviour {
         Status = "Review finished. Team approved to continue.";
     }
     void OnGUI() {
-        if (!Hooks.IsHost()) return;
         GUI.depth = -10000;
         GUI.color = Color.white;
-        if (!open) { GUI.Box(new Rect(16, 16, 220, 30), ManualBossEnabled ? "HOST BOSS  |  F6 controls" : "AI BOSS  |  F6 toggle"); return; }
-        window.width = Mathf.Min(580, Screen.width - 24);
+        if (!open) { GUI.Box(new Rect(16, 16, 240, 30), !Hooks.IsHost() ? "SLIDE MAKER  |  F6 to open" : ManualBossEnabled ? "HOST BOSS  |  F6 controls" : "AI BOSS  |  F6 / slide maker"); return; }
+        window.width = Mathf.Min(makerVisible ? 960 : 580, Screen.width - 24);
         window.height = Mathf.Min(650, Screen.height - 50);
         window.x = Mathf.Clamp(window.x, 0, Screen.width - window.width);
         window.y = Mathf.Clamp(window.y, 0, Screen.height - window.height);
@@ -712,6 +811,12 @@ public sealed class BossPanel : MonoBehaviour {
     void Draw(int id) {
         ScammerGameManager game = ScammerGameManager.Instance;
         scroll = GUILayout.BeginScrollView(scroll);
+        GUILayout.BeginHorizontal();
+        if (GUILayout.Toggle(makerVisible, "Slide Maker") && !makerVisible) { makerVisible = true; scroll = Vector2.zero; }
+        if (GUILayout.Toggle(!makerVisible, "Host Controls") && makerVisible) { makerVisible = false; scroll = Vector2.zero; }
+        GUILayout.EndHorizontal();
+        if (makerVisible) { maker.Draw(this); GUILayout.EndScrollView(); GUI.DragWindow(new Rect(0, 0, 10000, 22)); return; }
+        if (!Hooks.IsHost()) { GUILayout.Label("Slide Maker is available anytime. Host a lobby to use boss controls."); GUILayout.EndScrollView(); GUI.DragWindow(new Rect(0, 0, 10000, 22)); return; }
         if (game == null) { GUILayout.Label("Waiting for the game manager..."); GUILayout.EndScrollView(); GUI.DragWindow(); return; }
         GUI.enabled = !FiringCutscene;
         bool aiBoss = GUILayout.Toggle(!ManualBossEnabled, "AI Boss — enable AI / disable Host Boss");
@@ -722,7 +827,7 @@ public sealed class BossPanel : MonoBehaviour {
             GUILayout.Label(Status);
             GUILayout.EndScrollView(); GUI.DragWindow(new Rect(0, 0, 10000, 22)); return;
         }
-        if (game.IsReviewPhase) DrawTitleEditor();
+        if (game.IsReviewPhase && defaultReviewDeck != null && !presentationStarted && !preparing && GUILayout.Button("Restore default presentation")) { RestoreDefaultTitles(); Status = "Default presentation restored; saved decks are unchanged."; }
         if (game.IsReviewPhase && !preparing && nativeDeck != null && preparedDay == game.CurrentDay) DrawNextDayGoals();
         GUI.enabled = game.IsReviewPhase && !preparing && !presentationStarted && nativeDeck != null && preparedDay == game.CurrentDay;
         if (GUILayout.Button(preparing ? "Preparing presentation..." : "Start Presentation", GUILayout.Height(36))) StartPresentation();
