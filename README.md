@@ -1,8 +1,10 @@
 # HostBoss for Scam With Your Friends
 
-An unofficial, experimental Windows mod that lets the lobby host control the end-of-day boss presentation. **HostBoss 1.60.0 uses BepInEx and the shared ScamWYF mod-lib 1.1.0.** The legacy runtime (1.4.2) and graphical disk patcher (1.4.3) remain separate historical releases.
+An unofficial, experimental Windows mod that lets the lobby host control the end-of-day boss presentation. **HostBoss 1.60.1 uses BepInEx and the shared ScamWYF mod-lib 1.1.0.** The legacy runtime (1.4.2) and graphical disk patcher (1.4.3) remain separate historical releases.
 
 The break-room character-creator laptop now includes **HostBoss** and **Slide Maker** apps with native app windows. Both require the player opening them to be the host. F6 remains available and shares the same Slide Maker draft and saves.
+
+**Game 0.1.81 / Unity 6000.3.26 update:** 1.60.1 includes `Repair-GameUpdate.ps1` for the old Input System 1.19 override that can crash the updated game before BepInEx starts, reporting corrupt `globalgamemanagers.assets`. With the game closed, run that script with `-GameDir` pointing at the game folder, then install both bundled DLLs. It backs up only an older Input System override; saves, game assets and other mods stay in place. See the [update instructions](HostBoss/PLUGIN.md#game-0181-update).
 
 ## Features
 
@@ -24,7 +26,7 @@ See [the full user guide](HostBoss/README.md) for behavior, limitations, and nor
 
 ## Install a release
 
-For version 1.60.0, put `ScamWYF.HostBoss.dll` from **HostBoss-Plugin-1.60.0.zip** in `BepInEx/plugins` and the bundled `ScamWYF.Modding.Core.dll` in `BepInEx/core`. The launcher catalogue must route both files to their correct folders before this version can be installed through it; the required entry is in [catalogue-entry.json](HostBoss/catalogue-entry.json). Use the launcher's Setup tab for BepInEx and its game compatibility fixes first. The plugin uses runtime Harmony hooks and leaves game DLLs unchanged. See the [plugin guide](HostBoss/PLUGIN.md).
+For version 1.60.1, put `ScamWYF.HostBoss.dll` from **HostBoss-Plugin-1.60.1.zip** in `BepInEx/plugins` and the bundled `ScamWYF.Modding.Core.dll` in `BepInEx/core`. The launcher catalogue must route both files to their correct folders before this version can be installed through it; the required entry is in [catalogue-entry.json](HostBoss/catalogue-entry.json). Use the launcher's Setup tab for BepInEx and its game compatibility fixes first. The plugin uses runtime Harmony hooks and leaves game DLLs unchanged. See the [plugin guide](HostBoss/PLUGIN.md).
 
 **Switching from the patcher:** close the game and choose **Remove / Normal Play** in HostBoss Patcher first. The plugin refuses mixed legacy/plugin installations. Disable or remove the plugin through the launcher's Mods tab with the game closed, then restart.
 
@@ -34,7 +36,7 @@ GitHub's automatically generated Source code ZIP contains source, not a ready-to
 
 ## Build from source
 
-Requirements: Windows, the .NET SDK (8 or newer), Windows .NET Framework 4.x including its C# compiler, and your own installed copy of Scam With Your Friends with managed assemblies. The game DLLs are read only as compiler references and are never included in this repository or release package. The current source was checked against the local 0.1.74-swyf game installation; future updates can change the required methods.
+Requirements: Windows, the .NET SDK (8 or newer), Windows .NET Framework 4.x including its C# compiler, and your own installed copy of Scam With Your Friends with managed assemblies. The game DLLs are read only as compiler references and are never included in this repository or release package. The current source was checked against the local 0.1.81-swyf game installation; future updates can change the required methods.
 
 From a source checkout, run in PowerShell:
 
