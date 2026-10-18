@@ -23,7 +23,7 @@ public static class Hooks {
         UnityEngine.Object.DontDestroyOnLoad(go);
         Panel = go.AddComponent<BossPanel>();
 #if BEPINEX
-        Debug.Log("[HostBoss] Loaded 1.60.0 BepInEx plugin. Host controls: F6.");
+        Debug.Log("[HostBoss] Loaded 1.60.1 BepInEx plugin. Host controls: F6.");
 #else
         Debug.Log("[HostBoss] Loaded 1.4.2. Recording playback fix; Fire All cutscene only. Host controls: F6.");
 #endif
