@@ -4,6 +4,12 @@
 
 Version 1.9.2 fixed invisible app text when opening the laptop before F1. App contents use opaque dark text, light buttons and readable text fields. Version 1.9.1 fixed app insertion on the game's stripped JSON runtime. Custom decks also remain usable when optional boss notes or review AI are unavailable: missing evidence is explicitly labeled, and AI failures keep the custom deck instead of silently leaving the default presentation active.
 
+Open the character-creator laptop in the break room and launch **HostBoss** or **Slide Maker** from its desktop. Both use the laptop's native app windows, controls, scrolling, taskbar, minimize, maximize and close buttons. Guests see exactly **You must be host to use HostBoss apps!** in either app, and host status is checked on every action.
+
+The laptop Slide Maker shares its draft, options, PNGs and saved decks with F6. **F6 stays available**, including its existing offline Slide Maker. Laptop apps require HostBoss installed on the player opening them. Restart after installing an update.
+
+HostBoss 1.60.0 uses BepInEx 5.4.23.5 and the shared [ScamWYF mod-lib](https://github.com/swyf-modding/mod-lib) 1.1.0. It does not modify game DLLs on disk. Custom server naming has been removed; the other features remain.
+
 ## Install and switch from the patcher
 
 1. Close the game. If you previously used HostBoss Patcher, choose **Remove / Normal Play** first, then restart the game after completing setup. The plugin refuses to enable when it detects legacy HostBoss references in the game assemblies.
