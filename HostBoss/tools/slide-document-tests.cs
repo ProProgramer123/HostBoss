@@ -82,6 +82,18 @@ class SlideDocumentTests {
             Check(missingEvidence.slides[2].quote == "No boss notes or recordings are available for this day." && missingEvidence.slides[2].replayMoments == null && missingEvidence.slides[2].narration == "", "missing evidence is explicit and never invents recordings or boss speech");
             Check(optionsDoc.Deck.slides[2].quote != missingEvidence.slides[2].quote, "missing-evidence placeholder does not change the saved draft");
             Check(optionsDoc.Options.For(expanded.slides[2].id).Camera == "bottom-left", "expanded heard slides inherit the placeholder's camera corner");
+            var textMoment = new ReviewSlideDefinition {id="runtime-ai-boss-notes-0", layout="checklist", title="Actual text-only boss note", narration="The game's original reaction", bullets=new[] {new ReviewBulletDefinition {text="Actual featured quote", tone="neutral"}}};
+            var videoMoment = SlideDocument.Clone(notes); videoMoment.id = "runtime-ai-boss-notes-1";
+            var indexedDeck = SlideDocument.Clone(nativeDeck); indexedDeck.slides = new[] {textMoment, videoMoment, app, fired};
+            var indexed = SlideDocument.ResolveNativeContent(optionsDoc.Deck, indexedDeck, optionsDoc.Options);
+            Check(indexed.slides[2].id == textMoment.id && indexed.slides[2].bullets[0].text == "Actual featured quote", "0.1.81 indexed text-only boss notes are included without a recording");
+            Check(indexed.slides[3].id == videoMoment.id && indexed.slides[3].replayMoments[0].replayId == "native-replay", "indexed notes and recordings retain native order and replay IDs");
+            Check(indexed.slides[2].narration == textMoment.narration && optionsDoc.Options.For(textMoment.id).Camera == "bottom-left" && optionsDoc.Options.For(videoMoment.id).Camera == "bottom-left", "indexed notes preserve original TTS and inherit camera placement");
+            optionsDoc.Options.NativeTts = false;
+            var quiet = SlideDocument.ResolveNativeContent(optionsDoc.Deck, indexedDeck, optionsDoc.Options);
+            Check(quiet.slides[2].narration == "" && quiet.slides[3].replayMoments[0].reaction == "" && textMoment.narration != "", "indexed notes respect the TTS toggle without mutating native evidence");
+            optionsDoc.Options.NativeTts = true;
+            Check(!SlideDocument.IsBossHeardSlide(null) && !SlideDocument.IsBossHeardSlide(new ReviewSlideDefinition {id="runtime-ai-boss-notesother-template"}), "boss-heard detection excludes null and unrelated similarly named slides");
             optionsDoc.Options.UseNativeSlides = true; optionsDoc.Options.NativeTts = false; optionsDoc.Options.AnnounceApps = false;
             expanded = SlideDocument.ResolveNativeContent(optionsDoc.Deck, nativeDeck, optionsDoc.Options);
             Check(expanded.slides.Length == 1 && expanded.slides[0].narration == "", "full native mode respects app/TTS toggles and excludes firing slides");
