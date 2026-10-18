@@ -5,6 +5,8 @@ foreach ($name in @('Assembly-CSharp.dll','ScriptsAssDef.dll')) {
     if (-not (Test-Path -LiteralPath (Join-Path $managed $name))) { throw "Missing game build reference: $name" }
 }
 $dependencyRoot = Join-Path $PSScriptRoot '.packages\bepinex'
+$modLib = Join-Path $PSScriptRoot '.packages\modlib-build\ScamWYF.Modding.Core.dll'
+if (-not (Test-Path $modLib)) { throw 'Run restore-modlib.ps1 -GameDir <game folder> first.' }
 foreach ($name in @('BepInEx.dll','0Harmony.dll')) {
     if (-not (Test-Path -LiteralPath (Join-Path $dependencyRoot $name))) { throw 'Run restore-plugin-dependencies.ps1 first.' }
 }
@@ -17,6 +19,7 @@ $output = Join-Path $PSScriptRoot 'bin\plugin'
 New-Item -ItemType Directory -Path $output -Force | Out-Null
 $refs = @(Get-ChildItem -LiteralPath $managed -Filter *.dll | Where-Object Name -ne 'HostBoss.Runtime.dll' | ForEach-Object { '/r:' + $_.FullName })
 $refs += @(('/r:' + (Join-Path $dependencyRoot 'BepInEx.dll')), ('/r:' + (Join-Path $dependencyRoot '0Harmony.dll')))
-& $dotnetExe $compiler /nologo /noconfig /target:library /nostdlib+ /define:BEPINEX /deterministic+ /optimize+ "/out:$output\ScamWYF.HostBoss.dll" $refs "$PSScriptRoot\src\HostBoss.cs" "$PSScriptRoot\src\Plugin.cs"
+$refs += '/r:' + $modLib
+& $dotnetExe $compiler /nologo /noconfig /target:library /nostdlib+ /define:BEPINEX /deterministic+ /optimize+ "/out:$output\ScamWYF.HostBoss.dll" $refs "$PSScriptRoot\src\HostBoss.cs" "$PSScriptRoot\src\Plugin.cs" "$PSScriptRoot\src\SlideDocument.cs" "$PSScriptRoot\src\SlideImages.cs" "$PSScriptRoot\src\SlideMaker.cs" "$PSScriptRoot\src\LaptopApps.cs"
 if ($LASTEXITCODE -ne 0) { throw 'HostBoss BepInEx plugin build failed.' }
 Write-Host "Built $output\ScamWYF.HostBoss.dll. No game files changed."
