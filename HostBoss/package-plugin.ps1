@@ -2,7 +2,7 @@ $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot
 $source = Join-Path $PSScriptRoot 'bin\plugin\ScamWYF.HostBoss.dll'
 if (-not (Test-Path -LiteralPath $source)) { throw 'Run build-plugin.ps1 first.' }
-$package = Join-Path $PSScriptRoot 'dist\HostBoss-Plugin-1.60.1'
+$package = Join-Path $PSScriptRoot 'dist\HostBoss-Plugin-1.60.2'
 New-Item -ItemType Directory -Path $package -Force | Out-Null
 Copy-Item -LiteralPath $source -Destination (Join-Path $package 'ScamWYF.HostBoss.dll') -Force
 foreach ($file in @('ScamWYF.Modding.Core.dll','LICENSE.mod-lib','MODLIB-SOURCE.txt')) {
@@ -17,5 +17,5 @@ $coreHash = (Get-FileHash (Join-Path $package 'ScamWYF.Modding.Core.dll')).Hash.
 [IO.File]::AppendAllText((Join-Path $package 'SHA256SUMS.txt'), "$coreHash  ScamWYF.Modding.Core.dll`r`n")
 $repairHash = (Get-FileHash (Join-Path $package 'Repair-GameUpdate.ps1')).Hash.ToLowerInvariant()
 [IO.File]::AppendAllText((Join-Path $package 'SHA256SUMS.txt'), "$repairHash  Repair-GameUpdate.ps1`r`n")
-Compress-Archive -Path (Join-Path $package '*') -DestinationPath (Join-Path $PSScriptRoot 'dist\HostBoss-Plugin-1.60.1.zip') -Force
-Write-Host "Plugin package: $PSScriptRoot\dist\HostBoss-Plugin-1.60.1.zip"
+Compress-Archive -Path (Join-Path $package '*') -DestinationPath (Join-Path $PSScriptRoot 'dist\HostBoss-Plugin-1.60.2.zip') -Force
+Write-Host "Plugin package: $PSScriptRoot\dist\HostBoss-Plugin-1.60.2.zip"
