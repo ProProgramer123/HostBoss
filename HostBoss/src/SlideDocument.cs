@@ -108,6 +108,14 @@ public sealed class SlideDocument {
         Validate(result);
         return result;
     }
+    public static bool IsBossHeardSlide(ReviewSlideDefinition slide) {
+        if (slide == null) return false;
+        // 0.1.81 splits the native notes into one slide per selected moment.
+        // Text-only moments have no replay array, but are still real boss notes.
+        return slide.id == "runtime-ai-boss-notes" ||
+            (slide.id != null && slide.id.StartsWith("runtime-ai-boss-notes-", StringComparison.Ordinal)) ||
+            (slide.replayMoments != null && slide.replayMoments.Length > 0);
+    }
     public static ReviewSlideDeckDefinition ResolveNativeContent(ReviewSlideDeckDefinition draft, ReviewSlideDeckDefinition native, PresentationOptions options) {
         var result = ResolveRankings(draft, native);
         var slides = new List<ReviewSlideDefinition>();
@@ -132,7 +140,7 @@ public sealed class SlideDocument {
                 if (options.Slides.TryGetValue(slide.id, out setting) && setting.NativeHeard) {
                     int before = slides.Count;
                     if (native != null && native.slides != null) foreach (var source in native.slides) {
-                        if (source.id == "runtime-ai-boss-notes" || (source.replayMoments != null && source.replayMoments.Length > 0)) addNative(source, setting);
+                        if (IsBossHeardSlide(source)) addNative(source, setting);
                     }
                     if (slides.Count == before) {
                         // Missing optional evidence must not discard the rest of the custom deck.

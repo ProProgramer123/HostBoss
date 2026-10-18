@@ -11,11 +11,11 @@ using ScamWYF.Modding.Core;
 using ScamWYF.Modding.Core.Ui;
 
 [assembly: AssemblyTitle("HostBoss BepInEx Plugin")]
-[assembly: AssemblyVersion("1.60.1.0")]
-[assembly: AssemblyFileVersion("1.60.1.0")]
+[assembly: AssemblyVersion("1.60.2.0")]
+[assembly: AssemblyFileVersion("1.60.2.0")]
 
 namespace HostBoss {
-    [BepInPlugin(PluginId, "HostBoss", "1.60.1")]
+    [BepInPlugin(PluginId, "HostBoss", "1.60.2")]
     [BepInProcess("Scam With Your Friends.exe")]
     public sealed class Plugin : ScamMod {
         public const string PluginId = "com.proprogramer123.scamwyf.hostboss";
@@ -68,7 +68,7 @@ namespace HostBoss {
                 patchesInstalled = true;
                 foreach (var patch in patches) if (!PatchCoordinator.TryPatch(this, patch.Key, "HostBoss " + patch.Key.Name, prefix: patch.Value)) throw new InvalidOperationException("Could not install HostBoss hook " + patch.Key.Name);
                 Hooks.Init();
-                ModLog.LogInfo("HostBoss 1.60.1 enabled with mod-lib. F1: shared menu. F6: HostBoss / Slide Maker.");
+                ModLog.LogInfo("HostBoss 1.60.2 enabled with mod-lib. F1: shared menu. F6: HostBoss / Slide Maker.");
             } catch (Exception e) {
                 DisablePlugin();
                 ModLog.LogError("HostBoss could not enable; native boss remains active. " + e);

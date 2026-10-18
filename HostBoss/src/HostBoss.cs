@@ -23,7 +23,7 @@ public static class Hooks {
         UnityEngine.Object.DontDestroyOnLoad(go);
         Panel = go.AddComponent<BossPanel>();
 #if BEPINEX
-        Debug.Log("[HostBoss] Loaded 1.60.1 BepInEx plugin. Host controls: F6.");
+        Debug.Log("[HostBoss] Loaded 1.60.2 BepInEx plugin. Host controls: F6.");
 #else
         Debug.Log("[HostBoss] Loaded 1.4.2. Recording playback fix; Fire All cutscene only. Host controls: F6.");
 #endif
@@ -75,6 +75,10 @@ public sealed partial class BossPanel : MonoBehaviour {
     bool presentationStarted;
     ReviewSlideDeckDefinition defaultReviewDeck;
     ReviewSlideDeckDefinition originalReviewDeck;
+    ReviewSlideDeckDefinition selectedReviewDeck;
+    ReviewWhiteboardController selectedReviewBoard;
+    int selectedReviewDay = -1;
+    uint selectedReviewGeneration;
     PresentationOptions activeOptions;
     bool madeDeckActive;
     bool makerVisible;
@@ -247,6 +251,10 @@ public sealed partial class BossPanel : MonoBehaviour {
         var draft = SlideDocument.Clone(document.Deck);
         var options = SlideDocument.Clone(document.Options);
         if (options.NeedsAi) {
+            if (selectedReviewDeck != null && selectedReviewBoard == Board && selectedReviewDay == ScammerGameManager.Instance.CurrentDay && selectedReviewGeneration == Board.Networkm_reviewGeneration) {
+                CommitMadeDeck(draft, options, selectedReviewDeck);
+                return;
+            }
             CancelPreparation(); preparation = new CancellationTokenSource(); preparing = true;
             prepareRoutine = StartCoroutine(PrepareSelectedSlides(draft, options, ScammerGameManager.Instance.CurrentDay, preparation.Token));
             Status = "Preparing the game's selected slides, real quotes and original boss TTS...";
@@ -262,7 +270,10 @@ public sealed partial class BossPanel : MonoBehaviour {
         for (int i = 0; i < deck.slides.Length; i++) if (deck.slides[i].replayMoments != null) foreach (var moment in deck.slides[i].replayMoments) if (moment != null && !string.IsNullOrWhiteSpace(moment.quote)) AddRecordingQuote(moment, i);
         goalsSlide = FindGoalsSlide(deck);
         ReindexQuoteSlides();
-        Status = "Custom presentation applied. Click Start Presentation when ready.";
+        int heardSlides = 0;
+        foreach (var slide in deck.slides) if (SlideDocument.IsBossHeardSlide(slide)) heardSlides++;
+        Status = "Custom presentation applied. " + heardSlides + " built-in boss-heard slides. Click Start Presentation when ready.";
+        Debug.Log("[HostBoss] Custom deck applied: day=" + preparedDay + " slides=" + deck.slides.Length + " bossHeardSlides=" + heardSlides);
     }
     IEnumerator PrepareSelectedSlides(ReviewSlideDeckDefinition draft, PresentationOptions options, int day, CancellationToken token) {
         var work = BuildSelectedSlides(draft, options, day, token);
@@ -303,9 +314,15 @@ public sealed partial class BossPanel : MonoBehaviour {
         highlights.GetAwaiter().GetResult(); token.ThrowIfCancellationRequested();
         var game = ScammerGameManager.Instance;
         if (!Hooks.ManualBossActive() || game == null || !game.IsReviewPhase || game.CurrentDay != day || presentationStarted) throw new OperationCanceledException();
-        CommitMadeDeck(draft, options, tracker.BuildReviewDeck(review, overview));
+        var selected = tracker.BuildReviewDeck(review, overview);
+        // Cache only within this board/day/generation. Reapplying a draft must not
+        // throw away successful native notes by making another AI request.
+        selectedReviewDeck = SlideDocument.Clone(selected); selectedReviewBoard = Board;
+        selectedReviewDay = day; selectedReviewGeneration = Board.Networkm_reviewGeneration;
+        CommitMadeDeck(draft, options, selectedReviewDeck);
     }
     void HandlePresentationEnded(int day) {
+        selectedReviewDeck = null; selectedReviewBoard = null; selectedReviewDay = -1; selectedReviewGeneration = 0;
         RestoreDefaultTitles();
         ResetNextDayGoals();
         goalsSlide = null;
