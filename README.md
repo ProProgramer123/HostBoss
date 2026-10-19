@@ -2,6 +2,8 @@
 
 **Setup scan status (October 18, 2026):** the revised 1.60.4 EXE still has **2/71 VirusTotal detections**. These are not confirmed false positives. The ZIP's 0/68 result does not clear its contained files. Read the [exact scan reports and installer behavior](HostBoss/SECURITY-SETUP.md) before installing.
 
+**Linux x64 (Steam Proton):** an experimental self-contained command-line installer is available as `HostBoss-Linux-1.60.4-x64.tar.gz`. [Linux setup guide](HostBoss/LINUX.md). Its portable installer logic was tested on Windows; the Linux binary and live Proton gameplay were not run here. The Windows VirusTotal reports do not cover the Linux build.
+
 **Easy setup:** download and extract **HostBoss-Setup-1.60.4.zip**, run its EXE from [Releases](https://github.com/ProProgramer123/HostBoss/releases/latest), close the game, select its folder and click **Install / Update**. Includes both required DLLs and the official loader setup. [Setup guide](HostBoss/SETUP.md).
 
 An unofficial, experimental Windows mod that lets the lobby host control the end-of-day boss presentation. **HostBoss 1.60.4 uses BepInEx and the shared ScamWYF mod-lib 1.1.0.** The legacy runtime (1.4.2) and graphical disk patcher (1.4.3) remain separate historical releases.
