@@ -1,6 +1,6 @@
-# HostBoss 1.60.3 BepInEx plugin
+# HostBoss 1.60.4 BepInEx plugin
 
-Version 1.60.3 recognizes the updated game's numbered What the Boss Heard slides, including quotes without recordings. Reapplying a presentation reuses successfully prepared native notes for the same review. Native narration, recordings and slide camera choices are preserved.
+Version 1.60.4 recognizes the updated game's numbered What the Boss Heard slides, including quotes without recordings. Reapplying a presentation reuses successfully prepared native notes for the same review. Native narration, recordings and slide camera choices are preserved.
 
 ## Game 0.1.81 update
 
@@ -22,17 +22,17 @@ Open the character-creator laptop in the break room and launch **HostBoss** or *
 
 The laptop Slide Maker shares its draft, options, PNGs and saved decks with F6. **F6 stays available**, including its existing offline Slide Maker. Laptop apps require HostBoss installed on the player opening them. Restart after installing an update.
 
-HostBoss 1.60.3 uses BepInEx 5.4.23.5 and the shared [ScamWYF mod-lib](https://github.com/swyf-modding/mod-lib) 1.1.0. It does not modify game DLLs on disk. Custom server naming has been removed; the other features remain.
+HostBoss 1.60.4 uses BepInEx 5.4.23.5 and the shared [ScamWYF mod-lib](https://github.com/swyf-modding/mod-lib) 1.1.0. It does not modify game DLLs on disk. Custom server naming has been removed; the other features remain.
 
 ## Setup EXE
 
-For a single-download installation, run **HostBoss-Setup-1.60.3.exe**, select the game folder, then click **Install / Update**. It bundles both mod DLLs and the official loader setup. See [the setup guide](SETUP.md).
+For a setup installation, extract **HostBoss-Setup-1.60.4.zip**, run the EXE, select the game folder, then click **Install / Update**. It bundles both mod DLLs and the official loader setup. See [the setup guide](SETUP.md).
 
 ## Install and switch from the patcher
 
 1. Close the game. If you previously used HostBoss Patcher, choose **Remove / Normal Play** first, then restart the game after completing setup. The plugin refuses to enable when it detects legacy HostBoss references in the game assemblies.
 2. Use the ScamWYF launcher's Setup tab to configure the game's supported BepInEx loader and required compatibility fixes.
-3. The 1.60.3 ZIP contains two DLLs: put `ScamWYF.HostBoss.dll` in `BepInEx/plugins` and `ScamWYF.Modding.Core.dll` in `BepInEx/core`. The core library is shared and must never go in `plugins`. The launcher catalogue must route both files before installing this version through Get mods or Install from URL.
+3. The 1.60.4 ZIP contains two DLLs: put `ScamWYF.HostBoss.dll` in `BepInEx/plugins` and `ScamWYF.Modding.Core.dll` in `BepInEx/core`. The core library is shared and must never go in `plugins`. The launcher catalogue must route both files before installing this version through Get mods or Install from URL.
 4. Launch the game and press **F6**. Slide Maker works in the main menu, lobby, during shifts and during reviews, including AI mode. Boss controls require hosting a lobby.
 
 Use the launcher's Mods tab to disable or remove HostBoss while the game is closed. Restart for changes to take effect. The mod's own AI Boss toggle restores the native boss without uninstalling it. No separate legacy HostBoss runtime is required. Keep the shared core library if other mods use it. Mod-lib provides the F1 menu, F6 key registration, patch coordination and unload cleanup; HostBoss's page links to the slide maker and host controls.
@@ -88,6 +88,6 @@ From the source checkout:
 .\HostBoss\package-plugin.ps1
 ```
 
-The build downloads no game files. Only the two build-reference DLLs are extracted from the pinned official BepInEx archive, after checking its SHA-256. Neither is included in the plugin release. Your installed game assemblies supply compiler references. Output is `HostBoss/dist/HostBoss-Plugin-1.60.3.zip`.
+The build downloads no game files. Only the two build-reference DLLs are extracted from the pinned official BepInEx archive, after checking its SHA-256. Neither is included in the plugin release. Your installed game assemblies supply compiler references. Output is `HostBoss/dist/HostBoss-Plugin-1.60.4.zip`.
 
 The plugin validates all eleven method targets before patching, removes its own Harmony patches if initialization fails, and refuses mixed legacy/plugin installation. It remains experimental: compilation, metadata, launcher installation, and structural checks do not replace live review and multiplayer testing. Antivirus detections from the legacy EXE do not establish the result for this distinct plugin binary; no clean verdict is claimed. MIT licensed; not affiliated with the game's developers.

@@ -1,79 +1,62 @@
 param([string]$SetupSource)
 $ErrorActionPreference = 'Stop'
-$pin = '02a97179b4db3e59be4d04850411595b170a85e3'
-if (-not $SetupSource) {
-    $SetupSource = Join-Path $PSScriptRoot '.packages\official-setup'
-    if (-not (Test-Path -LiteralPath $SetupSource)) {
-        & git clone https://github.com/swyf-modding/Setup.git $SetupSource
-        if ($LASTEXITCODE -ne 0) { throw 'Could not fetch official setup source.' }
-        & git -C $SetupSource checkout --detach $pin
-        if ($LASTEXITCODE -ne 0) { throw 'Could not select pinned setup source.' }
-    }
-}
-$head = & git -C $SetupSource rev-parse HEAD
-if ($LASTEXITCODE -ne 0 -or $head -ne $pin) { throw "Setup source must be official commit $pin." }
-$dirty = & git -C $SetupSource status --porcelain --untracked-files=all
-if ($LASTEXITCODE -ne 0 -or $dirty) { throw 'Setup source has local changes; refusing to bundle it.' }
-$bep = Join-Path $PSScriptRoot '.packages\BepInEx_win_x64_5.4.23.5.zip'
-if (-not (Test-Path -LiteralPath $bep)) { & (Join-Path $PSScriptRoot 'restore-plugin-dependencies.ps1') }
-if ((Get-FileHash -LiteralPath $bep).Hash -ne '82F9878551030F54657792C0740D9D51A09500EEAE1FBA21106B0C441E6732C4') { throw 'BepInEx archive checksum mismatch.' }
-$pluginZip = Join-Path $PSScriptRoot 'dist\HostBoss-Plugin-1.60.3.zip'
-if (-not (Test-Path -LiteralPath $pluginZip)) { throw 'Build and package the 1.60.3 plugin first.' }
-$stage = Join-Path $PSScriptRoot ('bin\setup-build-' + [Guid]::NewGuid().ToString('N'))
-$payload = Join-Path $stage 'payload'
-New-Item -ItemType Directory -Path (Join-Path $payload 'Setup'),(Join-Path $payload 'mod') -Force | Out-Null
+$pin='02a97179b4db3e59be4d04850411595b170a85e3'
+if (-not $SetupSource) { $SetupSource=Join-Path $PSScriptRoot '.packages\official-setup'; if (-not (Test-Path $SetupSource)) { & git clone https://github.com/swyf-modding/Setup.git $SetupSource; if($LASTEXITCODE -ne 0){throw 'Setup download failed.'}; & git -C $SetupSource checkout --detach $pin } }
+if ((& git -C $SetupSource rev-parse HEAD) -ne $pin -or (& git -C $SetupSource status --porcelain --untracked-files=all)) { throw 'Use a clean official Setup checkout at the pinned commit.' }
+$bep=Join-Path $PSScriptRoot '.packages\BepInEx_win_x64_5.4.23.5.zip'
+if ((Get-FileHash $bep).Hash -ne '82F9878551030F54657792C0740D9D51A09500EEAE1FBA21106B0C441E6732C4') { throw 'BepInEx archive checksum mismatch.' }
+& (Join-Path $PSScriptRoot 'restore-dependencies.ps1')
+$stage=Join-Path $PSScriptRoot ('bin\setup-native-'+[Guid]::NewGuid().ToString('N'))
+$out=Join-Path $stage 'HostBoss-Setup-1.60.4'
+$payload=Join-Path $out 'SetupFiles'
+$adapted=Join-Path $stage 'adapted'
+New-Item -ItemType Directory -Path $payload,$adapted -Force | Out-Null
 Add-Type -AssemblyName System.IO.Compression.FileSystem
-[IO.Compression.ZipFile]::ExtractToDirectory($pluginZip,(Join-Path $payload 'mod'))
-foreach ($file in @('setup.ps1','install-bepinex.ps1','GameDir.ps1','LICENSE','README.md','tools','vendor')) {
-    Copy-Item -LiteralPath (Join-Path $SetupSource $file) -Destination (Join-Path $payload 'Setup') -Recurse -Force
-}
-# Upstream searches a hard-coded D: even with an explicit valid game folder.
-# Resolve our already validated explicit folder first, without probing missing drives.
-$resolver = Join-Path $payload 'Setup\GameDir.ps1'
-$resolverText = [IO.File]::ReadAllText($resolver)
-$needle = '    $candidates = @()'
-if (($resolverText.Split(@($needle),[StringSplitOptions]::None).Count - 1) -ne 1) { throw 'Upstream resolver changed; review compatibility patch.' }
-$explicitFirst = @'
-    if ($Explicit) {
-        $exact = [IO.Path]::GetFullPath($Explicit)
-        if (-not (Test-Path -LiteralPath (Join-Path $exact 'Scam With Your Friends_Data\Managed\mscorlib.dll'))) { throw 'The selected game folder is incomplete.' }
-        if ($RequireBepInEx -and -not (Test-Path -LiteralPath (Join-Path $exact 'BepInEx\core\BepInEx.dll'))) { throw 'BepInEx is not installed in the selected game folder.' }
-        return $exact
+[IO.Compression.ZipFile]::ExtractToDirectory((Join-Path $PSScriptRoot 'dist\HostBoss-Plugin-1.60.4.zip'),(Join-Path $payload 'mod'))
+Remove-Item -LiteralPath (Join-Path $payload 'mod\Repair-GameUpdate.ps1'),(Join-Path $payload 'mod\SHA256SUMS.txt')
+Copy-Item -LiteralPath (Join-Path $SetupSource 'vendor') -Destination $payload -Recurse
+$tempBep=Join-Path $stage 'bep'
+[IO.Compression.ZipFile]::ExtractToDirectory($bep,$tempBep)
+Copy-Item -LiteralPath (Join-Path $tempBep 'BepInEx') -Destination $payload -Recurse
+Copy-Item -LiteralPath (Join-Path $SetupSource 'LICENSE') -Destination (Join-Path $payload 'LICENSE.Setup')
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'SETUP-THIRD-PARTY.txt'),(Join-Path $PSScriptRoot 'lib\Mono.Cecil.LICENSE.txt') -Destination $payload
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'lib\Mono.Cecil.dll') -Destination $out
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'SETUP.md') -Destination (Join-Path $out 'README.md')
+$names=@('GameInstall.cs','SteamEnvironment.cs','SetupException.cs','SetupLog.cs','SetupPayload.cs','LoaderInstaller.cs','CorlibSeeder.cs','SetupVerifier.cs','Patching\AwaiterUnstripper.cs','Patching\VtableBreakFixer.cs')
+foreach($name in $names) {
+    $text=[IO.File]::ReadAllText((Join-Path $SetupSource ('src\ScamWYF.Setup.Core\'+$name)))
+    $text=$text.Replace('RuntimeInformation.IsOSPlatform(OSPlatform.Windows)','(Environment.OSVersion.Platform == PlatformID.Win32NT)')
+    $text=$text.Replace('Path.GetRelativePath(source, file)','file.Substring(source.TrimEnd(Path.DirectorySeparatorChar).Length + 1)')
+    $text=$text.Replace('info.ResolveLinkTarget(true)','((DirectoryInfo)null)')
+    if($name -eq 'LoaderInstaller.cs') {
+        $begin=$text.IndexOf('        private static void Download(')
+        $end=$text.IndexOf('        private static void CopyIntoGame(', $begin)
+        if($begin -lt 0 -or $end -lt 0) { throw 'Review upstream loader source.' }
+        $text=$text.Substring(0,$begin) + '        private static void Download(string version,string destination,ISetupLog log) { throw new SetupException("This HostBoss installer only uses its bundled on-disk files; downloads are disabled."); }' + [Environment]::NewLine + $text.Substring($end)
+        $text=$text.Replace('using System.Net.Http;','')
     }
-    $candidates = @()
-'@
-[IO.File]::WriteAllText($resolver,$resolverText.Replace($needle,$explicitFirst),[Text.UTF8Encoding]::new($false))
-Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'SETUP-THIRD-PARTY.txt') -Destination $payload
-Copy-Item -LiteralPath $bep -Destination (Join-Path $payload 'BepInEx.zip')
-Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Setup-HostBoss.ps1') -Destination $payload
-$provenance = @"
-HostBoss Setup 1.60.3
-HostBoss: https://github.com/ProProgramer123/HostBoss (MIT; mod/LICENSE)
-Shared mod-lib: see mod/MODLIB-SOURCE.txt and mod/LICENSE.mod-lib
-Official ScamWYF Setup: https://github.com/swyf-modding/Setup/tree/$pin
-Setup scripts pinned to $pin. See Setup/LICENSE.
-GameDir.ps1 has one documented compatibility patch: validate and return the explicit
-game folder before Steam-library probing, which otherwise fails without a D: drive.
-The exact patch is in HostBoss/build-setup.ps1 in the HostBoss source repository.
-Mono class libraries: see Setup/vendor/corlib/LICENSE-Mono
-Doorstop: see Setup/vendor/doorstop/LICENSE
-BepInEx 5.4.23.5: https://github.com/BepInEx/BepInEx/releases/tag/v5.4.23.5
-BepInEx archive SHA256: 82f9878551030f54657792c0740d9d51a09500eeae1fba21106b0c441e6732c4
-BepInEx, HarmonyX, Harmony, MonoMod and Cecil notices: SETUP-THIRD-PARTY.txt. BepInEx source:
-https://github.com/BepInEx/BepInEx/tree/v5.4.23.5
-Doorstop corresponding source: https://github.com/NeighTools/UnityDoorstop/tree/v4.5.0
-No game assemblies or private user data are distributed.
-Inspect everything without installing: HostBoss-Setup-1.60.3.exe --extract <new-folder>
-"@
-[IO.File]::WriteAllText((Join-Path $payload 'SOURCES-AND-LICENSES.txt'),$provenance)
-$archive = Join-Path $stage 'Payload.zip'
-[IO.Compression.ZipFile]::CreateFromDirectory($payload,$archive,[IO.Compression.CompressionLevel]::Optimal,$false)
-$hashFile = Join-Path $stage 'Payload.sha256'
-[IO.File]::WriteAllText($hashFile,(Get-FileHash -LiteralPath $archive).Hash)
-$out = Join-Path $PSScriptRoot 'dist\HostBoss-Setup-1.60.3.exe'
-$compiler = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
-& $compiler /nologo /target:winexe /platform:x64 /optimize+ /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.IO.Compression.dll /r:System.IO.Compression.FileSystem.dll "/resource:$archive,HostBoss.Payload.zip" "/resource:$hashFile,HostBoss.Payload.sha256" "/win32manifest:$PSScriptRoot\src\PluginSetup.manifest" "/out:$out" "$PSScriptRoot\src\PluginSetup.cs"
-if ($LASTEXITCODE -ne 0) { throw 'Setup EXE build failed.' }
-$sum = (Get-FileHash -LiteralPath $out).Hash.ToLowerInvariant()
-[IO.File]::WriteAllText(($out + '.sha256'),"$sum  HostBoss-Setup-1.60.3.exe`r`n")
-Write-Output "Built $out"
+    [IO.File]::WriteAllText((Join-Path $adapted (Split-Path $name -Leaf)),$text,[Text.UTF8Encoding]::new($false))
+}
+$dotnet=(Get-Command dotnet).Source
+$sdk=& $dotnet --list-sdks | Select-Object -Last 1
+if($sdk -notmatch '^(\S+)\s+\[(.+)\]$') { throw 'Install the .NET SDK.' }
+$csc=Join-Path (Join-Path $Matches[2] $Matches[1]) 'Roslyn\bincore\csc.dll'
+$framework=Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319'
+$refs=@('mscorlib.dll','System.dll','System.Core.dll','System.Xml.dll','System.IO.Compression.dll','System.IO.Compression.FileSystem.dll','System.Windows.Forms.dll','System.Drawing.dll') | ForEach-Object { '/r:'+(Join-Path $framework $_) }
+$refs+='/r:'+(Join-Path $out 'Mono.Cecil.dll')
+$sources=@(Get-ChildItem $adapted -Filter *.cs | ForEach-Object FullName)
+& $dotnet $csc /nologo /noconfig /nostdlib+ /target:library /deterministic+ /optimize+ "/out:$out\ScamWYF.Setup.Core.dll" $refs $sources
+if($LASTEXITCODE -ne 0){throw 'Native setup core build failed.'}
+$refs+='/r:'+(Join-Path $out 'ScamWYF.Setup.Core.dll')
+$exe=Join-Path $out 'HostBoss-Setup-1.60.4.exe'
+& $dotnet $csc /nologo /noconfig /nostdlib+ /target:winexe /platform:x64 /deterministic+ /optimize+ "/win32manifest:$PSScriptRoot\src\PluginSetup.manifest" "/out:$exe" $refs "$PSScriptRoot\src\PluginSetup.cs" "$PSScriptRoot\src\NativeInstall.cs"
+if($LASTEXITCODE -ne 0){throw 'Setup EXE build failed.'}
+$notice="Official Setup source: https://github.com/swyf-modding/Setup/tree/$pin`r`nAdaptations: .NET Framework path/platform APIs, network download disabled. No embedded payload, scripts, shell commands or dynamic assembly loader. Build adaptations are in HostBoss/build-setup.ps1. Mono.Cecil is 0.11.6. Licenses are visible in SetupFiles.`r`n"
+[IO.File]::WriteAllText((Join-Path $payload 'SOURCES.txt'),$notice)
+$lines=@(Get-ChildItem -LiteralPath $out -Recurse -File | Sort-Object FullName | ForEach-Object { (Get-FileHash -LiteralPath $_.FullName).Hash.ToLowerInvariant()+'  '+$_.FullName.Substring($out.Length+1) })
+[IO.File]::WriteAllLines((Join-Path $out 'SHA256SUMS.txt'),$lines,[Text.UTF8Encoding]::new($false))
+$zip=Join-Path $PSScriptRoot 'dist\HostBoss-Setup-1.60.4.zip'
+if(Test-Path -LiteralPath $zip){Remove-Item -LiteralPath $zip}
+[IO.Compression.ZipFile]::CreateFromDirectory($out,$zip)
+[IO.File]::WriteAllText((Join-Path $PSScriptRoot 'bin\last-setup-build.txt'),$out)
+Write-Output "Built $zip`r`nEXE: $exe"
