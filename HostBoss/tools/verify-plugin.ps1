@@ -14,7 +14,7 @@ try {
     if ($metadata.Count -ne 1) { throw 'Expected one BepInPlugin attribute.' }
     if ($metadata[0].ConstructorArguments[0].Value -ne 'com.proprogramer123.scamwyf.hostboss') { throw 'Wrong plugin GUID.' }
     $version = New-Object Version ($metadata[0].ConstructorArguments[2].Value)
-    if ($version.ToString() -ne '1.60.3') { throw 'Wrong plugin version.' }
+    if ($version.ToString() -ne '1.60.4') { throw 'Wrong plugin version.' }
     if ($plugin.MainModule.AssemblyReferences.Name -contains 'HostBoss.Runtime') { throw 'Plugin depends on the legacy runtime.' }
     $enable = $type.Methods | Where-Object Name -eq 'EnablePlugin'
     $targets = @($enable.Body.Instructions | Where-Object {$_.Operand -is [Mono.Cecil.MethodReference] -and $_.Operand.Name -eq 'Add'})
@@ -66,7 +66,7 @@ try {
     } finally { $imgui.Dispose() }
 } finally { $plugin.Dispose() }
 Add-Type -AssemblyName System.IO.Compression.FileSystem
-$zip = [IO.Compression.ZipFile]::OpenRead((Join-Path $root 'dist\HostBoss-Plugin-1.60.3.zip'))
+$zip = [IO.Compression.ZipFile]::OpenRead((Join-Path $root 'dist\HostBoss-Plugin-1.60.4.zip'))
 try {
     $files = @($zip.Entries | ForEach-Object FullName)
     if ($files.Count -ne 8 -or @($files | Where-Object {$_ -notin @('ScamWYF.HostBoss.dll','ScamWYF.Modding.Core.dll','LICENSE','LICENSE.mod-lib','MODLIB-SOURCE.txt','README.md','SHA256SUMS.txt','Repair-GameUpdate.ps1')}).Count) { throw 'Plugin ZIP contains unexpected files.' }
