@@ -1,12 +1,14 @@
 # HostBoss for Scam With Your Friends
 
-**Easy setup:** download **HostBoss-Setup-1.60.3.exe** from [Releases](https://github.com/ProProgramer123/HostBoss/releases/latest), close the game, select its folder and click **Install / Update**. Includes both required DLLs and the official loader setup. [Setup guide](HostBoss/SETUP.md).
+**Setup scan status (October 18, 2026):** the revised 1.60.4 EXE still has **2/71 VirusTotal detections**. These are not confirmed false positives. The ZIP's 0/68 result does not clear its contained files. Read the [exact scan reports and installer behavior](HostBoss/SECURITY-SETUP.md) before installing.
 
-An unofficial, experimental Windows mod that lets the lobby host control the end-of-day boss presentation. **HostBoss 1.60.3 uses BepInEx and the shared ScamWYF mod-lib 1.1.0.** The legacy runtime (1.4.2) and graphical disk patcher (1.4.3) remain separate historical releases.
+**Easy setup:** download and extract **HostBoss-Setup-1.60.4.zip**, run its EXE from [Releases](https://github.com/ProProgramer123/HostBoss/releases/latest), close the game, select its folder and click **Install / Update**. Includes both required DLLs and the official loader setup. [Setup guide](HostBoss/SETUP.md).
+
+An unofficial, experimental Windows mod that lets the lobby host control the end-of-day boss presentation. **HostBoss 1.60.4 uses BepInEx and the shared ScamWYF mod-lib 1.1.0.** The legacy runtime (1.4.2) and graphical disk patcher (1.4.3) remain separate historical releases.
 
 The break-room character-creator laptop now includes **HostBoss** and **Slide Maker** apps with native app windows. Both require the player opening them to be the host. F6 remains available and shares the same Slide Maker draft and saves.
 
-**Game 0.1.81 / Unity 6000.3.26 update:** 1.60.3 includes `Repair-GameUpdate.ps1` for the old Input System 1.19 override that can crash the updated game before BepInEx starts, reporting corrupt `globalgamemanagers.assets`. With the game closed, run that script with `-GameDir` pointing at the game folder, then install both bundled DLLs. It backs up only an older Input System override; saves, game assets and other mods stay in place. See the [update instructions](HostBoss/PLUGIN.md#game-0181-update).
+**Game 0.1.81 / Unity 6000.3.26 update:** 1.60.4 includes `Repair-GameUpdate.ps1` for the old Input System 1.19 override that can crash the updated game before BepInEx starts, reporting corrupt `globalgamemanagers.assets`. With the game closed, run that script with `-GameDir` pointing at the game folder, then install both bundled DLLs. It backs up only an older Input System override; saves, game assets and other mods stay in place. See the [update instructions](HostBoss/PLUGIN.md#game-0181-update).
 
 ## Features
 
@@ -28,7 +30,7 @@ See [the full user guide](HostBoss/README.md) for behavior, limitations, and nor
 
 ## Install a release
 
-For version 1.60.3, put `ScamWYF.HostBoss.dll` from **HostBoss-Plugin-1.60.3.zip** in `BepInEx/plugins` and the bundled `ScamWYF.Modding.Core.dll` in `BepInEx/core`. The launcher catalogue must route both files to their correct folders before this version can be installed through it; the required entry is in [catalogue-entry.json](HostBoss/catalogue-entry.json). Use the launcher's Setup tab for BepInEx and its game compatibility fixes first. The plugin uses runtime Harmony hooks and leaves game DLLs unchanged. See the [plugin guide](HostBoss/PLUGIN.md).
+For version 1.60.4, put `ScamWYF.HostBoss.dll` from **HostBoss-Plugin-1.60.4.zip** in `BepInEx/plugins` and the bundled `ScamWYF.Modding.Core.dll` in `BepInEx/core`. The launcher catalogue must route both files to their correct folders before this version can be installed through it; the required entry is in [catalogue-entry.json](HostBoss/catalogue-entry.json). Use the launcher's Setup tab for BepInEx and its game compatibility fixes first. The plugin uses runtime Harmony hooks and leaves game DLLs unchanged. See the [plugin guide](HostBoss/PLUGIN.md).
 
 **Switching from the patcher:** close the game and choose **Remove / Normal Play** in HostBoss Patcher first. The plugin refuses mixed legacy/plugin installations. Disable or remove the plugin through the launcher's Mods tab with the game closed, then restart.
 
