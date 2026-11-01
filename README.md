@@ -1,5 +1,12 @@
 # HostBoss for Scam With Your Friends
 
+## Current release: 1.60.6
+
+Download [HostBoss 1.60.6](https://github.com/ProProgramer123/HostBoss/releases/tag/v1.60.6) for game 0.1.95. Extract the whole setup ZIP before running its EXE. This release fixes recording waits and What the Boss Heard evidence handling. [Current setup, build instructions, source layout and validation](HostBoss/RELEASE-1.60.6.md). The current source is in HostBoss/plugin and HostBoss/setup. The 1.60.6 installer is unsigned and not VirusTotal-scanned. Linux 1.60.4 remains historical.
+
+The documentation below describes the previous 1.60.4 release and legacy tools.
+
+
 **Setup scan status (October 18, 2026):** the revised 1.60.4 EXE still has **2/71 VirusTotal detections**. These are not confirmed false positives. The ZIP's 0/68 result does not clear its contained files. Read the [exact scan reports and installer behavior](HostBoss/SECURITY-SETUP.md) before installing.
 
 **Linux x64 (Steam Proton):** an experimental self-contained command-line installer is available as `HostBoss-Linux-1.60.4-x64.tar.gz`. [Linux setup guide](HostBoss/LINUX.md). Its portable installer logic was tested on Windows; the Linux binary and live Proton gameplay were not run here. The Windows VirusTotal reports do not cover the Linux build.
